@@ -1,8 +1,22 @@
 import Head from "next/head";
 import styles from "./styles.module.scss";
 import Link from "next/link";
+import { GetStaticProps } from "next";
+import { prismic } from "@/services/prismic";
+import { RichText } from "prismic-dom";
 
-export default function Posts() {
+interface PostsProps {
+  posts: Post[];
+}
+
+interface Post {
+  slug: string;
+  title: string;
+  excerpt: string;
+  updatedAt: string;
+}
+
+export default function Posts({ posts }: PostsProps) {
   return (
     <>
       <Head>
@@ -10,32 +24,46 @@ export default function Posts() {
       </Head>
       <main className={styles.container}>
         <div className={styles.posts}>
-          <Link href={"#"}>
-            <time>12 de março de 2021</time>
-            <strong>Creating a Monorepo with Lerna & Yarn Workspaces</strong>
-            <p>
-              in this guide we will create a Monorepo to manage multiple
-              packages
-            </p>
-          </Link>
-          <Link href={"#"}>
-            <time>12 de março de 2021</time>
-            <strong>Creating a Monorepo with Lerna & Yarn Workspaces</strong>
-            <p>
-              in this guide we will create a Monorepo to manage multiple
-              packages
-            </p>
-          </Link>
-          <Link href={"#"}>
-            <time>12 de março de 2021</time>
-            <strong>Creating a Monorepo with Lerna & Yarn Workspaces</strong>
-            <p>
-              in this guide we will create a Monorepo to manage multiple
-              packages
-            </p>
-          </Link>
+          {posts.map((post) => (
+            <Link href={`posts/${post.slug}`} key={post.slug}>
+              <time>{post.updatedAt}</time>
+              <strong>{post.title}</strong>
+              <p>{post.excerpt}</p>
+            </Link>
+          ))}
         </div>
       </main>
     </>
   );
 }
+
+export const getStaticProps: GetStaticProps = async () => {
+  const response = await prismic.getAllByType("publication", {
+    fetch: ["publication.title", "publication.content"],
+    pageSize: 100,
+  });
+
+  const posts = response.map((post) => ({
+    slug: post.uid,
+    title: RichText.asText(post.data.title),
+    excerpt:
+      post.data.content.find((content: any) => content.type === "paragraph")
+        .text ?? "",
+    updatedAt: new Date(post.last_publication_date).toLocaleDateString(
+      "pt-BR",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }
+    ),
+  }));
+
+  console.log(posts);
+
+  return {
+    props: {
+      posts,
+    },
+  };
+};
